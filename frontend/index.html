@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Serviço de Recomendação de Equipes</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+    }
+
+    header {
+      background: #16213e;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 600; }
+    #breadcrumb { font-size: 0.85rem; color: #94a3b8; margin-left: auto; }
+
+    main { max-width: 900px; margin: 32px auto; padding: 0 16px; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      margin-bottom: 24px;
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 16px; color: #16213e; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 4px; color: #374151; }
+    input, select, textarea {
+      width: 100%; padding: 9px 12px; border: 1px solid #d1d5db;
+      border-radius: 8px; font-size: 0.95rem; margin-bottom: 12px;
+      outline: none; transition: border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #3b82f6; }
+
+    .btn {
+      display: inline-block; padding: 9px 18px; border: none;
+      border-radius: 8px; font-size: 0.9rem; cursor: pointer;
+      font-weight: 500; transition: opacity .15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary  { background: #3b82f6; color: white; }
+    .btn-success  { background: #10b981; color: white; }
+    .btn-warning  { background: #f59e0b; color: white; }
+    .btn-danger   { background: #ef4444; color: white; }
+    .btn-ghost    { background: #e5e7eb; color: #374151; }
+    .btn-sm       { padding: 6px 12px; font-size: 0.82rem; }
+
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row .btn { flex: none; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { background: #f8fafc; text-align: left; padding: 10px 12px;
+         border-bottom: 2px solid #e5e7eb; font-weight: 600; font-size: 0.82rem; color: #6b7280; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .badge-green  { background: #d1fae5; color: #065f46; }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .badge-orange { background: #ffedd5; color: #9a3412; }
+
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .team-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+    .team-card h3 { font-size: 0.95rem; color: #16213e; margin-bottom: 10px;
+                    padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+    .team-card .member { padding: 5px 0; font-size: 0.87rem; color: #374151;
+                         display: flex; align-items: center; gap: 6px; }
+    .member::before { content: '•'; color: #3b82f6; font-size: 1.1rem; }
+
+    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .tag { background: #eff6ff; color: #1d4ed8; border-radius: 6px;
+           padding: 3px 8px; font-size: 0.78rem; }
+
+    .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; }
+    .alert-error { background: #fef2f2; color: #b91c1c; border-left: 4px solid #ef4444; }
+    .alert-success { background: #f0fdf4; color: #166534; border-left: 4px solid #22c55e; }
+
+    .form-inline { display: flex; gap: 8px; align-items: flex-end; }
+    .form-inline > * { flex: 1; }
+    .form-inline .btn { flex: none; margin-bottom: 12px; }
+
+    #msgGlobal { position: fixed; top: 16px; right: 16px; z-index: 9999;
+                 max-width: 320px; }
+
+    .empty-state { text-align: center; padding: 40px; color: #9ca3af; }
+    .empty-state p { margin-top: 8px; font-size: 0.9rem; }
+
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+
+    .sub-section { margin-top: 16px; }
+    .sub-section h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 12px; color: #374151; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.5rem">👥</span>
+  <h1>Serviço de Recomendação de Equipes</h1>
+  <span id="breadcrumb"></span>
+</header>
+
+<div id="msgGlobal"></div>
+
+<main>
+
+  <!-- ===== SEÇÃO 1: Lista de Turmas ===== -->
+  <div id="sec-turmas" class="section active">
+    <div class="card">
+      <h2>Turmas Cadastradas</h2>
+      <div class="row" style="margin-bottom:16px">
+        <button class="btn btn-primary" onclick="mostrar('sec-nova-turma')">+ Nova Turma</button>
+        <button class="btn btn-ghost" onclick="carregarTurmas()">↻ Atualizar</button>
+      </div>
+      <div id="lista-turmas">
+        <div class="empty-state"><p>Carregando...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SEÇÃO 2: Nova / Editar Turma ===== -->
+  <div id="sec-nova-turma" class="section">
+    <div class="card">
+      <h2>Nova Turma</h2>
+      <label>Nome *</label>
+      <input id="turma-nome" type="text" placeholder="Ex: Turma 2025-1" />
+      <label>Descrição</label>
+      <textarea id="turma-desc" rows="3" placeholder="Disciplina, semestre, etc."></textarea>
+      <div class="row">
+        <button class="btn btn-success" onclick="salvarTurma()">Salvar</button>
+        <button class="btn btn-ghost" onclick="mostrar('sec-turmas')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SEÇÃO 3: Gerenciar Turma ===== -->
+  <div id="sec-gerenciar-turma" class="section">
+    <div class="card">
+      <h2 id="titulo-gerenciar">Pessoas da Turma</h2>
+      <div class="row" style="margin-bottom:16px">
+        <button class="btn btn-primary" onclick="mostrarFormPessoa()">+ Nova Pessoa</button>
+        <button class="btn btn-warning" onclick="mostrarFormFormacao()">⚡ Nova Formação de Equipes</button>
+        <button class="btn btn-ghost" onclick="mostrar('sec-turmas')">← Voltar</button>
+      </div>
+
+      <!-- Formulário inline para nova pessoa -->
+      <div id="form-pessoa" style="display:none" class="card" style="background:#f8fafc">
+        <h2>Cadastrar Pessoa</h2>
+        <label>Nome *</label>
+        <input id="p-nome" type="text" placeholder="Nome completo" />
+        <label>Email</label>
+        <input id="p-email" type="email" placeholder="email@exemplo.com" />
+        <label>Nível de Experiência</label>
+        <select id="p-nivel">
+          <option value="">Selecione...</option>
+          <option value="INICIANTE">Iniciante</option>
+          <option value="INTERMEDIARIO">Intermediário</option>
+          <option value="AVANCADO">Avançado</option>
+        </select>
+        <div class="row">
+          <button class="btn btn-success" onclick="salvarPessoa()">Salvar Pessoa</button>
+          <button class="btn btn-ghost" onclick="fecharFormPessoa()">Cancelar</button>
+        </div>
+      </div>
+
+      <div id="lista-pessoas">
+        <div class="empty-state"><p>Carregando pessoas...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SEÇÃO 4: Atributos da Pessoa ===== -->
+  <div id="sec-atributos" class="section">
+    <div class="card">
+      <h2 id="titulo-atributos">Atributos da Pessoa</h2>
+      <button class="btn btn-ghost btn-sm" onclick="voltarParaTurma()" style="margin-bottom:16px">← Voltar para Turma</button>
+
+      <!-- Habilidades -->
+      <div class="sub-section">
+        <h3>🛠 Habilidades</h3>
+        <div class="form-inline">
+          <div>
+            <label>Categoria</label>
+            <select id="hab-categoria">
+              <option value="JAVA">Java</option>
+              <option value="PYTHON">Python</option>
+              <option value="JAVASCRIPT">JavaScript</option>
+              <option value="FRONTEND">Frontend</option>
+              <option value="BACKEND">Backend</option>
+              <option value="BANCO_DADOS">Banco de Dados</option>
+              <option value="MOBILE">Mobile</option>
+              <option value="DEVOPS">DevOps</option>
+              <option value="TESTES">Testes</option>
+              <option value="DESIGN">Design</option>
+              <option value="SEGURANCA">Segurança</option>
+              <option value="REDES">Redes</option>
+              <option value="DOCUMENTACAO">Documentação</option>
+              <option value="APRESENTACAO">Apresentação</option>
+              <option value="LIDERANCA">Liderança</option>
+              <option value="CPP">C++</option>
+              <option value="C">C</option>
+              <option value="PROGRAMACAO">Programação Geral</option>
+            </select>
+          </div>
+          <div style="max-width:160px">
+            <label>Nível</label>
+            <select id="hab-nivel">
+              <option value="BASICO">Básico</option>
+              <option value="INTERMEDIARIO">Intermediário</option>
+              <option value="AVANCADO">Avançado</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="adicionarHabilidade()">+ Add</button>
+        </div>
+        <div id="lista-habilidades" class="tag-list"></div>
+      </div>
+
+      <hr />
+
+      <!-- Interesses -->
+      <div class="sub-section">
+        <h3>💡 Interesses</h3>
+        <div class="form-inline">
+          <div>
+            <label>Tipo de Interesse</label>
+            <select id="int-tipo">
+              <option value="IA">Inteligência Artificial</option>
+              <option value="JOGOS">Jogos</option>
+              <option value="WEB">Web</option>
+              <option value="MOBILE">Mobile</option>
+              <option value="DADOS">Dados / Data Science</option>
+              <option value="SEGURANCA">Segurança</option>
+              <option value="REDES">Redes</option>
+              <option value="CLOUD">Cloud</option>
+              <option value="DEVOPS">DevOps</option>
+              <option value="ROBOTICA">Robótica</option>
+              <option value="CIENCIA">Ciência da Computação</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="adicionarInteresse()">+ Add</button>
+        </div>
+        <div id="lista-interesses" class="tag-list"></div>
+      </div>
+
+      <hr />
+
+      <!-- Disponibilidade -->
+      <div class="sub-section">
+        <h3>📅 Disponibilidade</h3>
+        <div class="form-inline">
+          <div>
+            <label>Dia da Semana</label>
+            <select id="disp-dia">
+              <option value="SEGUNDA">Segunda</option>
+              <option value="TERCA">Terça</option>
+              <option value="QUARTA">Quarta</option>
+              <option value="QUINTA">Quinta</option>
+              <option value="SEXTA">Sexta</option>
+              <option value="SABADO">Sábado</option>
+              <option value="DOMINGO">Domingo</option>
+            </select>
+          </div>
+          <div style="max-width:140px">
+            <label>Turno</label>
+            <select id="disp-turno">
+              <option value="MANHA">Manhã</option>
+              <option value="TARDE">Tarde</option>
+              <option value="NOITE">Noite</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="adicionarDisponibilidade()">+ Add</button>
+        </div>
+        <div id="lista-disponibilidades" class="tag-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SEÇÃO 5: Nova Formação ===== -->
+  <div id="sec-nova-formacao" class="section">
+    <div class="card">
+      <h2>Nova Formação de Equipes</h2>
+      <label>Nome da Formação *</label>
+      <input id="form-nome" type="text" placeholder="Ex: Sprint 1, Projeto Final..." />
+
+      <label>Estratégia de Recomendação *</label>
+      <select id="form-estrategia">
+        <option value="ALEATORIA">🎲 Aleatória — embaralha e divide</option>
+        <option value="NIVEL">📊 Balancear por Nível — mistura iniciantes e avançados</option>
+        <option value="HABILIDADES">🛠 Balancear por Habilidades — diversidade técnica</option>
+        <option value="INTERESSES">💡 Agrupar por Interesses — pessoas afins juntas</option>
+        <option value="DISPONIBILIDADE">📅 Agrupar por Disponibilidade — horários compatíveis</option>
+      </select>
+
+      <label>Tamanho de cada equipe</label>
+      <input id="form-tamanho" type="number" min="2" placeholder="Ex: 4 (pessoas por equipe)" />
+
+      <label>OU: Número de equipes</label>
+      <input id="form-numero" type="number" min="2" placeholder="Ex: 5 (o sistema calcula o tamanho)" />
+
+      <p style="font-size:0.82rem;color:#6b7280;margin-bottom:12px">
+        Informe <strong>tamanho</strong> ou <strong>número de equipes</strong> — não ambos.
+      </p>
+
+      <div class="row">
+        <button class="btn btn-success" onclick="salvarFormacao()">Salvar e Gerar Equipes</button>
+        <button class="btn btn-ghost" onclick="voltarParaTurma()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SEÇÃO 6: Resultado das Equipes ===== -->
+  <div id="sec-resultado" class="section">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <h2 id="titulo-resultado" style="margin:0">Equipes Geradas</h2>
+        <button class="btn btn-warning btn-sm" onclick="regenerarEquipes()">🔄 Regenerar</button>
+        <button class="btn btn-ghost btn-sm" onclick="voltarParaTurma()">← Voltar</button>
+      </div>
+      <p id="info-formacao" style="font-size:0.85rem;color:#6b7280;margin-bottom:16px"></p>
+      <div id="resultado-equipes" class="team-grid"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ---- Configuração ----
+  const API = 'http://localhost:8080';
+
+  // Estado global simples
+  let turmaAtualId = null;
+  let pessoaAtualId = null;
+  let formacaoAtualId = null;
+
+  // ---- Utilitários ----
+
+  function mostrar(secId) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById(secId).classList.add('active');
+
+    const nomes = {
+      'sec-turmas': 'Turmas',
+      'sec-nova-turma': 'Nova Turma',
+      'sec-gerenciar-turma': 'Turma',
+      'sec-atributos': 'Atributos',
+      'sec-nova-formacao': 'Nova Formação',
+      'sec-resultado': 'Resultado',
+    };
+    document.getElementById('breadcrumb').textContent = nomes[secId] || '';
+  }
+
+  function toast(msg, tipo = 'success') {
+    const div = document.getElementById('msgGlobal');
+    div.innerHTML = `<div class="alert alert-${tipo === 'error' ? 'error' : 'success'}">${msg}</div>`;
+    setTimeout(() => { div.innerHTML = ''; }, 3500);
+  }
+
+  async function api(method, path, body) {
+    const opts = {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+    if (!res.ok) throw new Error(data?.erro || `Erro ${res.status}`);
+    return data;
+  }
+
+  function nivelBadge(nivel) {
+    if (!nivel) return '';
+    const map = {
+      INICIANTE: 'badge-orange',
+      INTERMEDIARIO: 'badge-blue',
+      AVANCADO: 'badge-green',
+    };
+    const labels = { INICIANTE: 'Iniciante', INTERMEDIARIO: 'Intermediário', AVANCADO: 'Avançado' };
+    return `<span class="badge ${map[nivel] || ''}">${labels[nivel] || nivel}</span>`;
+  }
+
+  // ---- Seção 1: Turmas ----
+
+  async function carregarTurmas() {
+    try {
+      const turmas = await api('GET', '/turmas');
+      const div = document.getElementById('lista-turmas');
+      if (!turmas.length) {
+        div.innerHTML = `<div class="empty-state"><p>Nenhuma turma cadastrada. Clique em "+ Nova Turma".</p></div>`;
+        return;
+      }
+      div.innerHTML = `
+        <table>
+          <thead><tr><th>#</th><th>Nome</th><th>Descrição</th><th>Ações</th></tr></thead>
+          <tbody>
+            ${turmas.map(t => `
+              <tr>
+                <td>${t.id}</td>
+                <td><strong>${t.nome}</strong></td>
+                <td style="color:#6b7280">${t.descricao || '—'}</td>
+                <td>
+                  <button class="btn btn-primary btn-sm" onclick="abrirTurma(${t.id}, '${t.nome.replace(/'/g,"\\'")}')">Ver Pessoas</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } catch (e) {
+      toast('Erro ao carregar turmas: ' + e.message, 'error');
+    }
+  }
+
+  // ---- Seção 2: Nova Turma ----
+
+  async function salvarTurma() {
+    const nome = document.getElementById('turma-nome').value.trim();
+    const descricao = document.getElementById('turma-desc').value.trim();
+    if (!nome) { toast('Nome da turma é obrigatório.', 'error'); return; }
+    try {
+      await api('POST', '/turmas', { nome, descricao });
+      toast('Turma criada com sucesso!');
+      document.getElementById('turma-nome').value = '';
+      document.getElementById('turma-desc').value = '';
+      mostrar('sec-turmas');
+      carregarTurmas();
+    } catch (e) {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+
+  // ---- Seção 3: Gerenciar Turma ----
+
+  async function abrirTurma(id, nome) {
+    turmaAtualId = id;
+    document.getElementById('titulo-gerenciar').textContent = `Pessoas — ${nome}`;
+    fecharFormPessoa();
+    mostrar('sec-gerenciar-turma');
+    carregarPessoas();
+  }
+
+  async function carregarPessoas() {
+    if (!turmaAtualId) return;
+    try {
+      const pessoas = await api('GET', `/turmas/${turmaAtualId}/pessoas`);
+      const div = document.getElementById('lista-pessoas');
+      if (!pessoas.length) {
+        div.innerHTML = `<div class="empty-state"><p>Nenhuma pessoa cadastrada. Clique em "+ Nova Pessoa".</p></div>`;
+        return;
+      }
+      div.innerHTML = `
+        <table>
+          <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th>Ações</th></tr></thead>
+          <tbody>
+            ${pessoas.map(p => `
+              <tr>
+                <td><strong>${p.nome}</strong></td>
+                <td style="color:#6b7280">${p.email || '—'}</td>
+                <td>${nivelBadge(p.nivelExperiencia)}</td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" onclick="abrirAtributos(${p.id}, '${p.nome.replace(/'/g,"\\'")}')">Atributos</button>
+                  <button class="btn btn-danger btn-sm" onclick="deletarPessoa(${p.id})">Remover</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } catch (e) {
+      toast('Erro ao carregar pessoas: ' + e.message, 'error');
+    }
+  }
+
+  function mostrarFormPessoa() {
+    document.getElementById('form-pessoa').style.display = 'block';
+  }
+  function fecharFormPessoa() {
+    document.getElementById('form-pessoa').style.display = 'none';
+    document.getElementById('p-nome').value = '';
+    document.getElementById('p-email').value = '';
+    document.getElementById('p-nivel').value = '';
+  }
+
+  async function salvarPessoa() {
+    const nome = document.getElementById('p-nome').value.trim();
+    const email = document.getElementById('p-email').value.trim();
+    const nivelExperiencia = document.getElementById('p-nivel').value;
+    if (!nome) { toast('Nome é obrigatório.', 'error'); return; }
+    try {
+      await api('POST', `/turmas/${turmaAtualId}/pessoas`, { nome, email, nivelExperiencia });
+      toast('Pessoa cadastrada!');
+      fecharFormPessoa();
+      carregarPessoas();
+    } catch (e) {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+
+  async function deletarPessoa(id) {
+    if (!confirm('Remover esta pessoa e todos seus atributos?')) return;
+    try {
+      await api('DELETE', `/pessoas/${id}`);
+      toast('Pessoa removida.');
+      carregarPessoas();
+    } catch (e) {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+
+  // ---- Seção 4: Atributos ----
+
+  async function abrirAtributos(id, nome) {
+    pessoaAtualId = id;
+    document.getElementById('titulo-atributos').textContent = `Atributos — ${nome}`;
+    mostrar('sec-atributos');
+    carregarAtributos();
+  }
+
+  // Labels de exibição para os enums do backend
+  const categoriaLabels = {
+    PROGRAMACAO: 'Programação', BANCO_DADOS: 'Banco de Dados', FRONTEND: 'Frontend',
+    BACKEND: 'Backend', DOCUMENTACAO: 'Documentação', DESIGN: 'Design',
+    APRESENTACAO: 'Apresentação', LIDERANCA: 'Liderança', JAVA: 'Java',
+    PYTHON: 'Python', JAVASCRIPT: 'JavaScript', C: 'C', CPP: 'C++',
+    MOBILE: 'Mobile', TESTES: 'Testes', DEVOPS: 'DevOps', REDES: 'Redes', SEGURANCA: 'Segurança',
+  };
+  const nivelHabLabels = { BASICO: 'Básico', INTERMEDIARIO: 'Intermediário', AVANCADO: 'Avançado' };
+  const tipoInteresseLabels = {
+    IA: 'IA', JOGOS: 'Jogos', WEB: 'Web', MOBILE: 'Mobile', SEGURANCA: 'Segurança',
+    DADOS: 'Dados', REDES: 'Redes', CLOUD: 'Cloud', DEVOPS: 'DevOps',
+    ROBOTICA: 'Robótica', CIENCIA: 'Ciência',
+  };
+
+  async function carregarAtributos() {
+    try {
+      const p = await api('GET', `/pessoas/${pessoaAtualId}`);
+
+      // Habilidades — exibe categoria + nível com labels amigáveis
+      const hab = document.getElementById('lista-habilidades');
+      hab.innerHTML = p.habilidades && p.habilidades.length
+        ? p.habilidades.map(h => `<span class="tag">${categoriaLabels[h.categoria] || h.categoria} <small>(${nivelHabLabels[h.nivel] || h.nivel || ''})</small></span>`).join('')
+        : '<span style="color:#9ca3af;font-size:0.85rem">Nenhuma habilidade cadastrada.</span>';
+
+      // Interesses — exibe tipo com label amigável
+      const int = document.getElementById('lista-interesses');
+      int.innerHTML = p.interesses && p.interesses.length
+        ? p.interesses.map(i => `<span class="tag">${tipoInteresseLabels[i.tipo] || i.tipo}</span>`).join('')
+        : '<span style="color:#9ca3af;font-size:0.85rem">Nenhum interesse cadastrado.</span>';
+
+      // Disponibilidades
+      const disp = document.getElementById('lista-disponibilidades');
+      const diasPt = { SEGUNDA:'Seg', TERCA:'Ter', QUARTA:'Qua', QUINTA:'Qui', SEXTA:'Sex', SABADO:'Sáb', DOMINGO:'Dom' };
+      const turnosPt = { MANHA:'Manhã', TARDE:'Tarde', NOITE:'Noite' };
+      disp.innerHTML = p.disponibilidades && p.disponibilidades.length
+        ? p.disponibilidades.map(d => `<span class="tag">${diasPt[d.diaSemana]||d.diaSemana} ${turnosPt[d.turno]||d.turno}</span>`).join('')
+        : '<span style="color:#9ca3af;font-size:0.85rem">Nenhuma disponibilidade cadastrada.</span>';
+
+    } catch (e) {
+      toast('Erro ao carregar atributos: ' + e.message, 'error');
+    }
+  }
+
+  async function adicionarHabilidade() {
+    const categoria = document.getElementById('hab-categoria').value;
+    const nivel = document.getElementById('hab-nivel').value;
+    try {
+      await api('POST', `/pessoas/${pessoaAtualId}/habilidades`, { categoria, nivel });
+      carregarAtributos();
+    } catch (e) {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+
+  async function adicionarInteresse() {
+    const tipo = document.getElementById('int-tipo').value;
+    try {
+      await api('POST', `/pessoas/${pessoaAtualId}/interesses`, { tipo });
+      carregarAtributos();
+    } catch (e) {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+
+  async function adicionarDisponibilidade() {
+    const diaSemana = document.getElementById('disp-dia').value;
+    const turno = document.getElementById('disp-turno').value;
+    try {
+      await api('POST', `/pessoas/${pessoaAtualId}/disponibilidades`, { diaSemana, turno });
+      carregarAtributos();
+    } catch (e) {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+
+  // ---- Seção 5: Nova Formação ----
+
+  function mostrarFormFormacao() {
+    mostrar('sec-nova-formacao');
+  }
+
+  async function salvarFormacao() {
+    const nome = document.getElementById('form-nome').value.trim();
+    const estrategia = document.getElementById('form-estrategia').value;
+    const tamanho = parseInt(document.getElementById('form-tamanho').value) || null;
+    const numero = parseInt(document.getElementById('form-numero').value) || null;
+
+    if (!nome) { toast('Nome da formação é obrigatório.', 'error'); return; }
+    if (!tamanho && !numero) { toast('Informe o tamanho ou número de equipes.', 'error'); return; }
+
+    try {
+      const formacao = await api('POST', '/formacoes', {
+        turmaId: turmaAtualId,
+        nome,
+        estrategia,
+        tamanhoEquipe: tamanho,
+        numeroEquipes: numero,
+      });
+      formacaoAtualId = formacao.id;
+
+      // Gera as equipes imediatamente após criar a formação
+      const equipes = await api('POST', `/formacoes/${formacaoAtualId}/gerar`);
+      toast('Equipes geradas com sucesso!');
+      mostrarResultado(formacao, equipes);
+
+    } catch (e) {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+
+  // ---- Seção 6: Resultado ----
+
+  function mostrarResultado(formacao, equipes) {
+    document.getElementById('titulo-resultado').textContent = `Equipes — ${formacao.nome}`;
+    const estrategiasPt = {
+      ALEATORIA: 'Aleatória', NIVEL: 'Nível de Experiência',
+      HABILIDADES: 'Habilidades', INTERESSES: 'Interesses',
+      DISPONIBILIDADE: 'Disponibilidade',
+    };
+    document.getElementById('info-formacao').textContent =
+      `Estratégia: ${estrategiasPt[formacao.estrategia] || formacao.estrategia} | ${equipes.length} equipe(s) gerada(s)`;
+    renderizarEquipes(equipes);
+    mostrar('sec-resultado');
+  }
+
+  function renderizarEquipes(equipes) {
+    const div = document.getElementById('resultado-equipes');
+    if (!equipes || !equipes.length) {
+      div.innerHTML = '<div class="empty-state"><p>Nenhuma equipe gerada.</p></div>';
+      return;
+    }
+    div.innerHTML = equipes.map(e => `
+      <div class="team-card">
+        <h3>${e.nome}</h3>
+        ${(e.membros || []).map(m => `
+          <div class="member">${m.nomePessoa || 'Pessoa #' + m.pessoaId}</div>
+        `).join('')}
+        <div style="margin-top:8px;font-size:0.78rem;color:#9ca3af">${(e.membros||[]).length} membro(s)</div>
+      </div>
+    `).join('');
+  }
+
+  async function regenerarEquipes() {
+    if (!formacaoAtualId) return;
+    try {
+      const equipes = await api('POST', `/formacoes/${formacaoAtualId}/regenerar`);
+      toast('Equipes regeneradas!');
+      renderizarEquipes(equipes);
+    } catch (e) {
+      toast('Erro: ' + e.message, 'error');
+    }
+  }
+
+  function voltarParaTurma() {
+    mostrar('sec-gerenciar-turma');
+    carregarPessoas();
+  }
+
+  // ---- Inicialização ----
+  carregarTurmas();
+</script>
+
+</body>
+</html>
